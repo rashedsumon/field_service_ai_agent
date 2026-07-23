@@ -20,9 +20,21 @@ st.title("🛠️ Autonomous Field Service AI Agent")
 st.caption("Production-Grade Multi-Step Orchestrator with LangGraph, Gemini, and Human-in-the-Loop Safeguards")
 
 # --- Sidebar Configuration ---
+# --- Sidebar Configuration ---
 with st.sidebar:
     st.header("🔑 Credentials & Settings")
-    gemini_api_key = st.text_input("Google Gemini API Key", type="password")
+    
+    # 1. Fetch key from secrets if available
+    secret_key = st.secrets.get("GEMINI_API_KEY", "")
+    
+    # 2. Allow user input, defaulting to the secret key if present
+    gemini_api_key = st.text_input(
+        "Google Gemini API Key", 
+        value=secret_key, 
+        type="password",
+        help="Loaded automatically from Streamlit Secrets if configured."
+    )
+    
     st.markdown("---")
     st.subheader("📊 Hugging Face Dataset Tool")
     if st.button("Download & Load HF Dataset"):
