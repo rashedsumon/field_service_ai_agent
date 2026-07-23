@@ -1,7 +1,6 @@
 """
 streamlit_app.py
 Streamlit Web Application & Admin Control Panel.
-Serves as the UI for Streamlit Cloud deployment.
 """
 
 import streamlit as st
@@ -20,17 +19,15 @@ st.title("🛠️ Autonomous Field Service AI Agent")
 st.caption("Production-Grade Multi-Step Orchestrator with LangGraph, Gemini, and Human-in-the-Loop Safeguards")
 
 # --- Sidebar Configuration ---
-# --- Sidebar Configuration ---
 with st.sidebar:
     st.header("🔑 Credentials & Settings")
     
-    # 1. Fetch key from secrets if available
+    # Read from Streamlit secrets if present
     secret_key = st.secrets.get("GEMINI_API_KEY", "")
     
-    # 2. Allow user input, defaulting to the secret key if present
     gemini_api_key = st.text_input(
         "Google Gemini API Key", 
-        value=secret_key, 
+        value=secret_key,
         type="password",
         help="Loaded automatically from Streamlit Secrets if configured."
     )
@@ -47,8 +44,8 @@ with st.sidebar:
 if "tickets" not in st.session_state:
     st.session_state.tickets = []
 
-if not gemini_api_key:
-    st.warning("⚠️ Please enter your Google Gemini API Key in the sidebar to run the agent.")
+if not gemini_api_key.strip():
+    st.warning("⚠️ Please enter your Google Gemini API Key in the sidebar or set GEMINI_API_KEY in Streamlit Secrets.")
     st.stop()
 
 # Build Graph Agent
@@ -83,13 +80,17 @@ if st.button("🚀 Submit to AI Agent Pipeline", type="primary"):
                 "drafted_response": None,
                 "status": "INIT",
                 "escalation_reason": None,
-                "api_key": gemini_api_key
+                "api_key": gemini_api_key.strip()
             }
             
-            # Execute Agent Graph
-            final_state = agent.invoke(initial_state)
-            st.session_state.tickets.append(final_state)
-            st.success("Workflow Step Complete!")
+            try:
+                # Execute Agent Graph
+                final_state = agent.invoke(initial_state)
+                st.session_state.tickets.append(final_state)
+                st.success("Workflow Step Complete!")
+            except Exception as e:
+                st.error("❌ Agent Execution Failed!")
+                st.exception(e)
 
 # --- Section 2: Admin Dashboard & Approval Queue ---
 st.markdown("---")
@@ -121,15 +122,17 @@ else:
                     
                     if st.button(f"✅ Approve & Dispatch Ticket #{ticket['ticket_id']}", key=f"app_{idx}"):
                         ticket["status"] = "APPROVED"
-                        # Trigger drafting node manually after approval
                         from model import draft_customer_response
-                        ticket["drafted_response"] = draft_customer_response(
-                            api_key=gemini_api_key,
-                            extracted_info=ticket["extracted_data"],
-                            tech_name=ticket["matched_tech"]["name"],
-                            slot=ticket["matched_tech"]["available_slot"]
-                        )
-                        st.rerun()
+                        try:
+                            ticket["drafted_response"] = draft_customer_response(
+                                api_key=gemini_api_key.strip(),
+                                extracted_info=ticket["extracted_data"],
+                                tech_name=ticket["matched_tech"]["name"],
+                                slot=ticket["matched_tech"]["available_slot"]
+                            )
+                            st.rerun()
+                        except Exception as ex:
+                            st.error(f"Failed to draft response: {ex}")
                         
                 elif ticket["status"] in ["APPROVED", "AUTO_APPROVED"]:
                     st.markdown("**Drafted Response Email:**")

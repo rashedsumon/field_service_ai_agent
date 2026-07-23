@@ -1,6 +1,6 @@
 """
 model.py
-Contains Hugging Face intent classification logic (with fine-tuning code) 
+Contains Hugging Face intent classification logic
 and Gemini API integrations via LangChain for structured extraction.
 """
 
@@ -18,9 +18,7 @@ from langchain_core.prompts import ChatPromptTemplate
 MODEL_NAME = "distilbert-base-uncased"
 
 def fine_tune_hf_classifier(dataset_dict, label2id: Dict[str, int]):
-    """
-    Fine-tunes DistilBERT on field service ticket data for lightweight intent classification.
-    """
+    """Fine-tunes DistilBERT on field service ticket data."""
     id2label = {v: k for k, v in label2id.items()}
     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 
@@ -38,14 +36,14 @@ def fine_tune_hf_classifier(dataset_dict, label2id: Dict[str, int]):
 
     training_args = TrainingArguments(
         output_dir="./fine_tuned_intent_model",
-        evaluation_strategy="epoch",
+        eval_strategy="epoch",
         save_strategy="epoch",
         learning_rate=2e-5,
         per_device_train_batch_size=8,
         num_train_epochs=3,
         weight_decay=0.01,
         logging_dir="./logs",
-        no_cuda=True  # Ensure CPU compatibility for Streamlit Cloud
+        use_cpu=True
     )
 
     trainer = Trainer(
@@ -53,7 +51,7 @@ def fine_tune_hf_classifier(dataset_dict, label2id: Dict[str, int]):
         args=training_args,
         train_dataset=tokenized_datasets["train"],
         eval_dataset=tokenized_datasets["test"],
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
     )
 
     print("[HF Model] Starting fine-tuning...")
@@ -76,9 +74,13 @@ class ServiceTicketExtraction(BaseModel):
 
 def get_gemini_extractor(api_key: str):
     """Initializes Gemini model configured with structured output parsing."""
+    # Ensure API Key is explicitly present in environment variables
+    os.environ["GOOGLE_API_KEY"] = api_key.strip()
+    
+    # Use standard stable model name (gemini-1.5-flash or gemini-2.0-flash)
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        google_api_key=api_key,
+        model="gemini-1.5-flash",
+        api_key=api_key.strip(),
         temperature=0.1
     )
     structured_llm = llm.with_structured_output(ServiceTicketExtraction)
@@ -93,9 +95,11 @@ def get_gemini_extractor(api_key: str):
 
 def draft_customer_response(api_key: str, extracted_info: Dict[str, Any], tech_name: str, slot: str) -> str:
     """Generates a professional customer response email using Gemini."""
+    os.environ["GOOGLE_API_KEY"] = api_key.strip()
+    
     llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        google_api_key=api_key,
+        model="gemini-1.5-flash",
+        api_key=api_key.strip(),
         temperature=0.3
     )
     
