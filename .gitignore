@@ -1,0 +1,20 @@
+# Python environment
+.venv/
+env/
+venv/
+__pycache__/
+*.py[cod]
+
+# Machine Learning / HF Artifacts
+*.bin
+*.safetensors
+checkpoint-*/
+fine_tuned_intent_model/
+data/
+
+# Environment Variables & Secrets
+.env
+.streamlit/secrets.toml
+
+# System files
+.DS_Store
